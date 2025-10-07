@@ -128,6 +128,7 @@ typedef struct RTMPContext {
     int           nb_streamid;                ///< The next stream id to return on createStream calls
     double        duration;                   ///< Duration of the stream in seconds as returned by the server (only valid if non-zero)
     int           tcp_nodelay;                ///< Use TCP_NODELAY to disable Nagle's algorithm if set to 1
+    int           tcp_timeout;                ///< maximum time to wait for (network) read/write operation completion, in mcs
     char          *enhanced_codecs;           ///< codec list in enhanced rtmp
     char          username[50];
     char          password[50];
@@ -2716,10 +2717,12 @@ static int rtmp_open(URLContext *s, const char *uri, int flags, AVDictionary **o
             port = RTMP_DEFAULT_PORT;
         if (rt->listen)
             ff_url_join(buf, sizeof(buf), "tcp", NULL, hostname, port,
-                        "?listen&listen_timeout=%d&tcp_nodelay=%d",
-                        rt->listen_timeout * 1000, rt->tcp_nodelay);
+                        "?listen&listen_timeout=%d&tcp_nodelay=%d&timeout=%d",
+                        rt->listen_timeout * 1000, rt->tcp_nodelay, rt->tcp_timeout);
         else
-            ff_url_join(buf, sizeof(buf), "tcp", NULL, hostname, port, "?tcp_nodelay=%d", rt->tcp_nodelay);
+            ff_url_join(buf, sizeof(buf), "tcp", NULL, hostname, port,
+                        "?tcp_nodelay=%d&timeout=%d",
+                        rt->tcp_nodelay, rt->tcp_timeout);
     }
 
 reconnect:
@@ -3183,6 +3186,7 @@ static const AVOption rtmp_options[] = {
     {"rtmp_listen", "Listen for incoming rtmp connections", OFFSET(listen), AV_OPT_TYPE_INT, {.i64 = 0}, INT_MIN, INT_MAX, DEC, .unit = "rtmp_listen" },
     {"listen",      "Listen for incoming rtmp connections", OFFSET(listen), AV_OPT_TYPE_INT, {.i64 = 0}, INT_MIN, INT_MAX, DEC, .unit = "rtmp_listen" },
     {"tcp_nodelay", "Use TCP_NODELAY to disable Nagle's algorithm", OFFSET(tcp_nodelay), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, DEC|ENC},
+    {"tcp_timeout", "set timeout (in microseconds) of socket I/O operations", OFFSET(tcp_timeout), AV_OPT_TYPE_INT, {.i64 = -1}, -1, INT_MAX, DEC|ENC},
     {"timeout", "Maximum timeout (in seconds) to wait for incoming connections. -1 is infinite. Implies -rtmp_listen 1",  OFFSET(listen_timeout), AV_OPT_TYPE_INT, {.i64 = -1}, INT_MIN, INT_MAX, DEC, .unit = "rtmp_listen" },
     { NULL },
 };
